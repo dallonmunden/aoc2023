@@ -5,6 +5,8 @@
 int check_part_numbers(char lines[3][255]);
 int check_part_numbers_p2(char lines[3][255]);
 bool is_symbol(char c);
+bool is_num(char c);
+unsigned short get_num(char *line, unsigned char ind);
 
 int main(int argc, char const *argv[])
 {
@@ -16,6 +18,7 @@ int main(int argc, char const *argv[])
     position = 0;
 
     unsigned long int sum_parts = 0;
+    unsigned long int sum_gears = 0;
 
     // need triple line.
     for (int i = 0; i < 140; i++)
@@ -45,33 +48,65 @@ int main(int argc, char const *argv[])
             fgets(lines[2], 255, fp);
         }
         sum_parts = sum_parts + check_part_numbers(lines);
+        sum_gears = sum_gears + check_part_numbers_p2(lines);
     }
 
-    printf("%lu", sum_parts);
+    printf("\n\n%lu\n\n", sum_parts);
+    printf("\n\n%lu\n\n", sum_gears);
     return 0;
 }
 
-// int check_part_numbers_p2(char lines[3][255])
-// {
-//     // want to consider dimensions : i(column index) start of number in row j
-//     // we care about (i - 1) to (i + numlength + 1) for row j, j-1, j+1.
-//     // we look entirely through array lines[1].
+int check_part_numbers_p2(char lines[3][255])
+{
+    // want to consider dimensions : i(column index) start of number in row j
+    // we care about (i - 1) to (i + numlength + 1) for row j, j-1, j+1.
+    // we look entirely through array lines[1].
+    int gear_array[2] = {0, 0};
+    char array_ind = 0;
+    int gear_ratio = 0;
+    int gear_ratio_sum = 0;
+    bool already_used = false;
 
-//     for (int i = 0; i < 255; i++)
-//     {
-//         // check the surrounding elements if you find a star.
-//         if (lines[1][i] == '*')
-//         {
-//             for (int j = 0; j < 3; j++)
-//             {
-//                 for (int k = -1; k < 2; k++)
-//                 {
-//                 }
-//             }
-//         }
-//     }
-//     return part_sum;
-// }
+    for (int i = 0; i < 255; i++)
+    {
+        // check the surrounding elements if you find a star.
+        if (lines[1][i] == '*')
+        {
+            gear_array[0] = gear_array[1] = 0;
+            for (int j = 0; j < 3; j++)
+            {
+                already_used = false;
+                for (int k = -1; k < 2; k++)
+                {
+                    // want to check if the lines[1][ind] is num
+                    // you can have more than 1 number per line but dont take the same number twice :/
+                    if (!already_used && is_num(lines[j][i + k + (!(k + 1) & !i)]))
+                    {
+                        gear_array[!!gear_array[0]] = get_num(lines[j], i + k + (!(k + 1) & !i));
+                        already_used = true;
+                        // break;
+                    }
+                    else if (!is_num(lines[j][i + k + (!(k + 1) & !i)]))
+                    {
+                        already_used = false;
+                    }
+                }
+            }
+        }
+
+        if (gear_array[0] && gear_array[1])
+        {
+            gear_ratio_sum = gear_ratio_sum + (gear_array[0] * gear_array[1]);
+            gear_array[0] = gear_array[1] = 0;
+        }
+        else if (lines[1][i] == '\n' || lines[1][i] == '\000')
+        {
+            break;
+        }
+    }
+
+    return gear_ratio_sum;
+}
 
 int check_part_numbers(char lines[3][255])
 {
@@ -99,7 +134,8 @@ int check_part_numbers(char lines[3][255])
                     for (int k = -1; k < 2; k++)
                     {
                         // want (!!i ^ 1) = + 1 when k=-1, i=0, !!i^1 = 1 when i=0
-                        record = record || is_symbol(lines[j][i + k + (!(k + 1) & (!!i ^ 1))]);
+                        // record = record || is_symbol(lines[j][i + k + (!(k + 1) & (!!i ^ 1))]);
+                        record = record || is_symbol(lines[j][i + k + (!(k + 1) & !i)]);
                     }
                 }
             }
@@ -120,6 +156,40 @@ int check_part_numbers(char lines[3][255])
         }
     }
     return part_sum;
+}
+
+unsigned short get_num(char *line, unsigned char ind)
+{
+    // check if ind is zero probably. check if the char at the ind is not an int is when stop
+    // find the bounds. backward pass till either ind is zero or line[ind] is non number.
+
+    unsigned char start_bound = 0;
+    unsigned short number = 0;
+
+    // back pass
+    for (int i = 0; i < 255; i++)
+    {
+        if (((ind - 1) < 0) || !is_num(line[ind - i]))
+        {
+            start_bound = ind - i + 1;
+            break;
+        }
+    }
+
+    // forward pass. could probably just use while loop check for non number. getting lazy.
+    for (int i = 0; i < 255; i++)
+    {
+        if (is_num(line[start_bound + i]))
+        {
+            number = number * 10 + (line[start_bound + i] - 48);
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    return number;
 }
 
 bool is_symbol(char c)
